@@ -3,15 +3,7 @@
 # wanjx0701@gmail.com
 import math
 from typing import List
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
-import sklearn
-import pandas as pd
-import os
-import sys
-import time
 from tqdm.auto import tqdm
 import torch
 import torch.nn as nn
@@ -20,9 +12,6 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 Tensor = torch.Tensor
-# print(sys.version_info)
-# for module in mpl, np, pd, sklearn, torch:
-#     print(module.__name__, module.__version__)
 
 device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 print(device)
@@ -116,12 +105,12 @@ class MultiHeadAttention(nn.Module):
         V = V.view(batch_size, -1, self.head_nums, self.head_dim).transpose(1, 2)
 
         # 计算缩放点积注意力
-        scores = torch.matmul(Q, K.transpose(-1, -2)) / math.sqrt(self.head_dim)
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.head_dim)
         # scores.shape = [batch, head_nums, seq_len, seq_len]
 
         if attn_mask is not None:
             # attn_mask = attn_mask[:, None, None, :]   # [batch, seq_len] 扩展到 [batch_size, 1, 1, seq_len]
-            scores = scores.masked_fill(attn_mask, -1e9)
+            scores = scores.masked_fill(attn_mask.bool(), -1e9)
 
         attn_scores = torch.softmax(scores, dim=-1)     # attn_scores.shape = [batch, head_num, seq_lem, seq_len]
         output = torch.matmul(attn_scores, V)           # output.shape = [batch, head_num, seq_len, head_dim]
@@ -164,6 +153,7 @@ class TransformerBlock(nn.Module):
         self.ffn = nn.Sequential(
             nn.Linear(self.d_model, ffn_dim),
             nn.ReLU(),
+            nn.Dropout(dropout_rate),
             nn.Linear(ffn_dim, self.d_model),
         )
         self.ffn_layer_norm = nn.LayerNorm(self.d_model, eps=eps)
@@ -275,7 +265,7 @@ class TransformerModel(nn.Module):
         self.vocab_size = config['vocab_size']
         self.dropout_rate = config['dropout']
         self.max_length = config['max_length']
-        self.share = config['shar_embedding']
+        self.share = config['share_embedding']
 
         self.src_embedding = TransformerEmbedding(config)
         if self.share:              # 源和目标的嵌入层相同，共享参数，节省内存
@@ -405,7 +395,7 @@ if __name__ == '__main__':
         "bos_idx": 1,
         "eos_idx": 2,
         "layer_norm_eps": 1e-5,
-        "shar_embedding": True
+        "share_embedding": True
     }
 
     model = TransformerModel(config)
