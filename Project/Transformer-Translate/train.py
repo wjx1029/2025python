@@ -2,7 +2,6 @@
 # 2026年03月07日17时07分41秒
 # wanjx0701@gmail.com
 
-from langpairdataset import LangPairDataset
 from tokenizer import *
 from dataloader import *
 from transformermodel import TransformerModel
@@ -10,7 +9,7 @@ from trainfunc import *
 from callback import *
 
 import os
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from functools import partial  # 固定collate_fct的tokenizer参数
 
 exp_name = 'en-de-translate'
@@ -30,7 +29,7 @@ config = {
     'd_model': 512,                 # 模型的维度，即词嵌入的维度 *
     'num_heads': 8,                # 多头注意力的头数  *
     'dropout': 0.1,                 # dropout 概率    *
-    'dim_feedforward': 4096,        # FFN 的隐藏层大小    *
+    'dim_feedforward': 2048,        # FFN 的隐藏层大小    *
     'layer_norm_eps': 1e-6,         # 层归一化的 epsilon, 防止除零错误
     'num_encoder_layers': 6,        # 编码器层数 *
     'num_decoder_layers': 6,        # 解码器层数 *
@@ -57,12 +56,22 @@ sampler = TransformerBatchSampler(val_ds, batch_size=config['batch_size'], shuff
 val_dl = DataLoader(val_ds, batch_sampler=sampler, collate_fn=partial(collate_fct, tokenizer=tokenizer))
 
 # model
-model = TransformerModel(config)
+model = TransformerModel(src_vocab=config['vocab_size'],
+                         tgt_vocab=config['vocab_size'],
+                         d_model=config['d_model'],
+                         layers=config['num_encoder_layers'],
+                         heads=config['num_heads'],
+                         dropout=config['dropout'],
+                         ffn_hidden=config['dim_feedforward'],
+                         max_len=config['max_length'],
+                         pad_idx=config['pad_idx'],
+                         )
+
 # print(model)    # 打印模型结构
 print(f'Total params: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')  # 打印可训练参数数量
 
 # epochs
-epochs = 1
+epochs = 100
 
 # 损失函数
 loss_func = CrossEntropyWithpadding(config)

@@ -73,11 +73,9 @@ def evaluating(model, loss_func, data_loader):
         decoder_labels = batch['decoder_labels']
         decoder_labels_mask = batch['decoder_labels_mask']
 
-        output = model(encoder_inputs=encoder_inputs,
-                       decoder_inputs=decoder_inputs,
-                       encoder_inputs_mask=encoder_inputs_mask,
-                       )
-        logits = output.logits
+        output = model(encoder_inputs, decoder_inputs)
+
+        logits = output
         loss = loss_func(logits, decoder_labels, padding_mask=decoder_labels_mask)
         loss_list.append(loss.cpu().item())
 
@@ -98,7 +96,7 @@ def training(model, train_data, val_data, epochs, loss_func, optimizer,
     global_step = 1
     model.train()
 
-    with tqdm(total=epochs) as pbar:
+    with tqdm(total=epochs * len(train_data)) as pbar:
         for epoch in range(epochs):
             for batch in train_data:
                 encoder_inputs = batch['encoder_inputs']
@@ -111,13 +109,11 @@ def training(model, train_data, val_data, epochs, loss_func, optimizer,
                 optimizer.zero_grad()
 
                 # 前向传播
-                output = model(encoder_inputs=encoder_inputs,
-                               decoder_inputs=decoder_inputs,
-                               encoder_inputs_mask=encoder_inputs_mask,
-                               )
+                output = model(encoder_inputs, decoder_inputs)
+
 
                 # 计算损失
-                logits = output.logits
+                logits = output
                 loss = loss_func(logits, decoder_labels, padding_mask=decoder_labels_mask)
 
                 # 反向传播
@@ -152,7 +148,7 @@ def training(model, train_data, val_data, epochs, loss_func, optimizer,
                 global_step += 1
                 pbar.update(1)
             pbar.set_postfix({"epoch": epoch, "loss": loss, "val_loss": val_loss})
-            print(f"Epoch [{epoch}/{epochs}] / loss: {loss}, val_loss: {val_loss}")
+
 
     return record_dict
 
